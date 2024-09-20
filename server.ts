@@ -1,21 +1,33 @@
-import { createServer } from "http";
-import { parse } from "url";
+/* eslint-disable no-console */
 import next from "next";
+import { createServer } from "node:http";
+import { env } from "node:process";
+import { parse } from "node:url";
+import Websocket from "ws";
 
-const port = parseInt(process.env.PORT || "3000", 10);
-const dev = process.env.NODE_ENV !== "production";
+const port = parseInt(env.PORT ?? "3002");
+const dev = env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();
+const wss = new Websocket.Server({ port: 8080 });
 
-app.prepare().then(() => {
-  createServer((req, res) => {
-    const parsedUrl = parse(req.url!, true);
-    handle(req, res, parsedUrl);
-  }).listen(port);
-
-  console.log(
-    `> Server listening at http://localhost:${port} as ${
-      dev ? "development" : process.env.NODE_ENV
-    }`,
-  );
+wss.on("connection", (ws) => {
+	ws.on("message", (message) => {
+		for (const client of wss.clients)
+			if (client !== ws && client.readyState === WebSocket.OPEN)
+				client.send(message);
+	});
 });
+app
+	.prepare()
+	.then(() => {
+		createServer((req, res) =>
+			handle(req, res, parse(req.url!, true)).catch(console.error)
+		).listen(port);
+		console.log(
+			`> Server listening at http://localhost:${port} as ${
+				dev ? "development" : env.NODE_ENV
+			}`
+		);
+	})
+	.catch(console.error);

@@ -1,12 +1,13 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "module": "commonjs",
-    "outDir": "dist",
-    "lib": ["es2019"],
-    "target": "es2019",
-    "isolatedModules": false,
-    "noEmit": false
-  },
-  "include": ["server.ts"]
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"module": "commonjs",
+		"outDir": "dist",
+		"lib": ["dom", "dom.iterable", "esnext"],
+		"target": "ES2023",
+		"isolatedModules": false,
+		"noEmit": false
+	},
+	"include": ["next-env.d.ts", "app", ".next/types/**/*.ts", "*.ts"],
+	"exclude": ["node_modules"]
 }

@@ -1,22 +1,46 @@
 {
-  "private": true,
-  "scripts": {
-    "dev": "nodemon",
-    "build": "next build && tsc --project tsconfig.server.json",
-    "start": "cross-env NODE_ENV=production node dist/server.js"
-  },
-  "dependencies": {
-    "cross-env": "^7.0.3",
-    "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
-  },
-  "devDependencies": {
-    "@types/node": "^18.11.5",
-    "@types/react": "^18.0.23",
-    "@types/react-dom": "^18.0.7",
-    "nodemon": "^2.0.20",
-    "ts-node": "^10.9.1",
-    "typescript": "^4.8.4"
-  }
+	"private": true,
+	"scripts": {
+		"dev": "nodemon",
+		"build": "next build && tsc --project tsconfig.server.json",
+		"start": "cross-env NODE_ENV=production node dist/server.js"
+	},
+	"engines": {
+		"node": "20.x"
+	},
+	"dependencies": {
+		"@fullhuman/postcss-purgecss": "^6.0.0",
+		"cross-env": "^7.0.3",
+		"next": "latest",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1",
+		"sharp": "^0.33.5",
+		"tailwindcss": "^3.4.12",
+		"undici": "^6.19.8",
+		"ws": "^8.18.0"
+	},
+	"devDependencies": {
+		"@next/eslint-plugin-next": "^14.2.13",
+		"@svgr/webpack": "^8.1.0",
+		"@types/node": "^22.5.5",
+		"@types/react": "^18.3.8",
+		"@types/react-dom": "^18.3.0",
+		"@types/ws": "^8.5.12",
+		"@typescript-eslint/eslint-plugin": "^8.6.0",
+		"autoprefixer": "^10.4.20",
+		"eslint": "^8.57.1",
+		"eslint-config-next": "^14.2.13",
+		"eslint-plugin-import": "^2.30.0",
+		"eslint-plugin-jsx-a11y": "^6.10.0",
+		"eslint-plugin-node": "^11.1.0",
+		"eslint-plugin-react": "^7.36.1",
+		"eslint-plugin-react-hooks": "^4.6.2",
+		"nodemon": "^3.1.6",
+		"postcss": "^8.4.47",
+		"postcss-flexbugs-fixes": "^5.0.2",
+		"postcss-import": "^16.1.0",
+		"postcss-preset-env": "^10.0.3",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.6.2"
+	}
 }
