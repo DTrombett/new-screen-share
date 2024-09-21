@@ -8,6 +8,6 @@
 		"isolatedModules": false,
 		"noEmit": false
 	},
-	"include": ["next-env.d.ts", "app", ".next/types/**/*.ts", "*.ts"],
+	"include": ["app", ".next/types/**/*.ts", "*.ts"],
 	"exclude": ["node_modules"]
 }

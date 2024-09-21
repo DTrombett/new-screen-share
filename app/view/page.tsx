@@ -5,10 +5,9 @@ const Home = () => {
 	const peerConnection = useRef<RTCPeerConnection>();
 	const remoteVideoRef = useRef<HTMLVideoElement>(null);
 	const webSocket = useRef<WebSocket>();
-	const [username, setUsername] = useState<string>();
-	const [offers, setOffers] = useState<
-		{ username: string; description: RTCSessionDescriptionInit }[]
-	>([]);
+	const username = useRef<string>();
+	const [offers, setOffers] =
+		useState<{ username: string; description: RTCSessionDescriptionInit }[]>();
 
 	useEffect(
 		() => () => {
@@ -17,7 +16,7 @@ const Home = () => {
 		},
 		[]
 	);
-	return username ? (
+	return offers ? (
 		<div>
 			<div>
 				{offers.map((o) => (
@@ -31,7 +30,11 @@ const Home = () => {
 
 							await peerConnection.current?.setLocalDescription(description);
 							webSocket.current?.send(
-								JSON.stringify({ type: "answer", description, username })
+								JSON.stringify({
+									type: "answer",
+									description,
+									username: username.current,
+								})
 							);
 						}}
 					>
@@ -46,8 +49,11 @@ const Home = () => {
 			className="mx-auto flex flex-col"
 			onSubmit={(e) => {
 				e.preventDefault();
-				setUsername((e.currentTarget[0] as HTMLInputElement).value);
-				webSocket.current = new WebSocket("ws://localhost:8080");
+				setOffers([]);
+				username.current = (e.currentTarget[0] as HTMLInputElement).value;
+				webSocket.current = new WebSocket(
+					`ws://localhost:8080/view?username=${username.current}`
+				);
 				peerConnection.current = new RTCPeerConnection();
 				peerConnection.current.addEventListener("icecandidate", (event) => {
 					if (event.candidate)
@@ -55,7 +61,7 @@ const Home = () => {
 							JSON.stringify({
 								type: "ice-candidate",
 								candidate: event.candidate,
-								username,
+								username: username.current,
 							})
 						);
 				});
@@ -65,27 +71,32 @@ const Home = () => {
 				});
 				webSocket.current.addEventListener(
 					"message",
-					async (message: MessageEvent<Blob>) => {
+					async (message: MessageEvent<Blob | string>) => {
 						const data: {
 							type: string;
 							description: RTCSessionDescriptionInit;
 							username: string;
-						} = JSON.parse(await message.data.text());
+						} = JSON.parse(
+							typeof message.data === "string"
+								? message.data
+								: await message.data.text()
+						);
 
-						if (data.type === "offer") {
-							const newOffers = offers.slice();
-							const old = newOffers.find(
-								({ username: user }) => user === data.username
-							);
+						if (data.type === "offer")
+							setOffers((oldOffers) => {
+								const newOffers = oldOffers?.slice();
+								const old = newOffers?.find(
+									({ username: user }) => user === data.username
+								);
 
-							if (old) old.description = data.description;
-							else
-								newOffers.push({
-									username: data.username,
-									description: data.description,
-								});
-							setOffers(newOffers);
-						}
+								if (old) old.description = data.description;
+								else
+									newOffers?.push({
+										username: data.username,
+										description: data.description,
+									});
+								return newOffers;
+							});
 					}
 				);
 			}}

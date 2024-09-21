@@ -23,17 +23,23 @@ const Home = () => {
 
 				e.preventDefault();
 				setUsername(newUsername);
-				webSocket.current = new WebSocket("ws://localhost:8080");
+				webSocket.current = new WebSocket(
+					`ws://localhost:8080/stream?username=${newUsername}`
+				);
 				peerConnection.current = new RTCPeerConnection();
 				webSocket.current.addEventListener(
 					"message",
-					async (message: MessageEvent<Blob>) => {
+					async (message: MessageEvent<string | Blob>) => {
 						const data: {
 							type: string;
 							username: string;
 							description: RTCSessionDescriptionInit;
 							candidate: RTCIceCandidate;
-						} = JSON.parse(await message.data.text());
+						} = JSON.parse(
+							typeof message.data === "string"
+								? message.data
+								: await message.data.text()
+						);
 
 						if (data.type === "answer")
 							await peerConnection.current?.setRemoteDescription(
