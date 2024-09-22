@@ -84,7 +84,6 @@ module.exports = {
 		"no-await-in-loop": "warn",
 		"no-caller": "warn",
 		"no-case-declarations": "off",
-		"no-console": "warn",
 		"no-constructor-return": "warn",
 		"no-labels": "warn",
 		"no-multi-str": "warn",

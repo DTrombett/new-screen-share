@@ -1,10 +1,14 @@
-/* eslint-disable no-console */
 import next from "next";
 import { createServer } from "node:http";
 import { env } from "node:process";
 import { parse, URL } from "node:url";
 import WebSocket, { WebSocketServer } from "ws";
-import { Role, type CustomWebSocket } from "./types";
+import {
+	Role,
+	type ClientMessage,
+	type CustomWebSocket,
+	type ServerMessage,
+} from "./types";
 
 const port = parseInt(env.PORT ?? "3002");
 const dev = env.NODE_ENV !== "production";
@@ -51,7 +55,7 @@ wss.on("connection", (ws, req) => {
 		return;
 	}
 	ws.isAlive = true;
-	ws.on("message", (message, binary) => {
+	ws.on("message", (message) => {
 		const isArray = Array.isArray(message);
 		const size = isArray
 			? message.reduce((s, buf) => s + buf.byteLength, 0)
@@ -62,38 +66,162 @@ wss.on("connection", (ws, req) => {
 			return;
 		}
 		try {
-			const data: object = JSON.parse(
+			const data: ClientMessage = JSON.parse(
 				isArray
 					? message.reduce((s, buf) => s + buf.toString(), "")
 					: // eslint-disable-next-line @typescript-eslint/no-base-to-string
 					  message.toString()
 			);
 
-			if (
-				"type" in data &&
-				typeof data.type === "string" &&
-				["offer", "answer", "ice-candidate"].includes(data.type)
-			)
-				for (const client of wss.clients)
-					if (client !== ws && client.readyState === WebSocket.OPEN)
-						client.send(message, { binary });
-		} catch (err) {}
+			if (data.type === "offer")
+				if (ws.role === Role.Streamer && ws.username) {
+					for (const client of wss.clients) {
+						console.log(client.username);
+						if (
+							client.username === data.data.user &&
+							client.role === Role.Viewer &&
+							client.readyState === WebSocket.OPEN
+						) {
+							client.send(
+								JSON.stringify({
+									type: "offer",
+									data: {
+										description: data.data.description,
+										user: ws.username,
+									},
+								} satisfies ServerMessage)
+							);
+							ws.peer = client.username;
+							return;
+						}
+					}
+					ws.send(
+						JSON.stringify({
+							type: "error",
+							data: "User not found!",
+						} satisfies ServerMessage)
+					);
+				} else
+					ws.send(
+						JSON.stringify({
+							type: "error",
+							data: "You're not a streamer!",
+						} satisfies ServerMessage)
+					);
+			else if (data.type === "answer")
+				if (ws.role === Role.Viewer) {
+					for (const client of wss.clients)
+						if (
+							client.username === data.data.user &&
+							client.role === Role.Streamer &&
+							client.peer === ws.username &&
+							client.readyState === WebSocket.OPEN
+						) {
+							client.send(
+								JSON.stringify({
+									type: "answer",
+									data: data.data.description,
+								} satisfies ServerMessage)
+							);
+							ws.peer = client.username;
+							return;
+						}
+					ws.send(
+						JSON.stringify({
+							type: "error",
+							data: "Offer not found!",
+						} satisfies ServerMessage)
+					);
+				} else
+					ws.send(
+						JSON.stringify({
+							type: "error",
+							data: "You're not a viewer!",
+						} satisfies ServerMessage)
+					);
+			else if (data.type === "candidate")
+				if (ws.role === Role.Viewer && ws.peer) {
+					for (const client of wss.clients)
+						if (
+							client.username === ws.peer &&
+							client.role === Role.Streamer &&
+							client.peer === ws.username &&
+							client.readyState === WebSocket.OPEN
+						) {
+							client.send(
+								JSON.stringify({
+									type: "candidate",
+									data: data.data,
+								} satisfies ServerMessage)
+							);
+							ws.peer = client.username;
+							return;
+						}
+					ws.send(
+						JSON.stringify({
+							type: "error",
+							data: "Peer not found!",
+						} satisfies ServerMessage)
+					);
+				} else
+					ws.send(
+						JSON.stringify({
+							type: "error",
+							data: "You're not a viewer or you haven't answered to any offer!",
+						} satisfies ServerMessage)
+					);
+			else
+				ws.send(
+					JSON.stringify({
+						type: "error",
+						data: "Unknown message type!",
+					} satisfies ServerMessage)
+				);
+		} catch (err) {
+			ws.send(
+				JSON.stringify({
+					type: "error",
+					data: "An unknown error occurred",
+				} satisfies ServerMessage)
+			);
+		}
 	});
 	ws.on("error", console.error);
 	ws.on("pong", () => (ws.isAlive = true));
-	const users: string[] = [];
+	if (ws.role === Role.Viewer)
+		ws.once("close", () => {
+			for (const client of wss.clients)
+				if (
+					client.role === Role.Streamer &&
+					client.readyState === WebSocket.OPEN
+				)
+					client.send(
+						JSON.stringify({
+							type: "removeUser",
+							data: ws.username!,
+						} satisfies ServerMessage)
+					);
+		});
+	if (ws.role === Role.Streamer) {
+		const data: string[] = [];
 
-	for (const client of wss.clients)
-		if (client.role !== ws.role) {
-			users.push(client.username!);
-			client.send(
-				JSON.stringify({
-					type: "newUser",
-					data: client.username,
-				})
-			);
-		}
-	ws.send(JSON.stringify({ type: "users", data: users }));
+		for (const client of wss.clients)
+			if (client.username && client.role === Role.Viewer)
+				data.push(client.username);
+		ws.send(JSON.stringify({ type: "users", data } satisfies ServerMessage));
+	} else
+		for (const client of wss.clients)
+			if (
+				client.role === Role.Streamer &&
+				client.username &&
+				client.readyState === WebSocket.OPEN
+			)
+				client.send(
+					JSON.stringify({
+						type: "addUser",
+						data: ws.username,
+					} satisfies ServerMessage)
+				);
 });
 void app.prepare().then(() => {
 	server.listen(port);

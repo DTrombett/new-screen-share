@@ -27,3 +27,37 @@ body {
 		background-color: #bfbfbf;
 	}
 }
+
+dialog[open] {
+	opacity: 1;
+	transform: scale(1);
+}
+
+dialog {
+	opacity: 0;
+	transform: scale(0);
+	transition: all 0.5s allow-discrete;
+}
+
+@starting-style {
+	dialog[open] {
+		opacity: 0;
+		transform: scale(0);
+	}
+}
+
+/* Transition the :backdrop when the dialog modal is promoted to the top layer */
+dialog::backdrop {
+	background-color: #00000000;
+	transition: all 0.7s allow-discrete;
+}
+
+dialog[open]::backdrop {
+	background-color: #00000080;
+}
+
+@starting-style {
+	dialog[open]::backdrop {
+		background-color: #00000000;
+	}
+}

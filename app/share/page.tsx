@@ -1,10 +1,11 @@
 "use client";
+import type { ClientMessage, ServerMessage } from "@/types";
 import { useEffect, useRef, useState } from "react";
 
 const Home = () => {
 	const peerConnection = useRef<RTCPeerConnection>();
 	const webSocket = useRef<WebSocket>();
-	const [username, setUsername] = useState<string>();
+	const [users, setUsers] = useState<string[]>();
 
 	useEffect(
 		() => () => {
@@ -13,57 +14,74 @@ const Home = () => {
 		},
 		[]
 	);
-	return username ? (
-		<span className="text-center">Sharing your screen...</span>
+	return users ? (
+		<div>
+			<div>
+				{users.map((user) => (
+					<button
+						key={user}
+						onClick={async () => {
+							peerConnection.current = new RTCPeerConnection();
+							const stream = await navigator.mediaDevices.getDisplayMedia({
+								video: true,
+								audio: true,
+							});
+
+							for (const track of stream.getTracks())
+								peerConnection.current.addTrack(track, stream);
+							const description = await peerConnection.current.createOffer();
+
+							await peerConnection.current.setLocalDescription(description);
+							webSocket.current?.send(
+								JSON.stringify({
+									type: "offer",
+									data: { description, user },
+								} satisfies ClientMessage)
+							);
+						}}
+					>
+						{user}
+					</button>
+				))}
+			</div>
+		</div>
 	) : (
 		<form
 			className="mx-auto flex flex-col"
 			onSubmit={async (e) => {
-				const newUsername = (e.currentTarget[0] as HTMLInputElement).value;
-
+				setUsers([]);
 				e.preventDefault();
-				setUsername(newUsername);
 				webSocket.current = new WebSocket(
-					`ws://localhost:8080/stream?username=${newUsername}`
+					`ws://${location.hostname}:8080/stream?username=${
+						(e.currentTarget[0] as HTMLInputElement).value
+					}`
 				);
-				peerConnection.current = new RTCPeerConnection();
 				webSocket.current.addEventListener(
 					"message",
 					async (message: MessageEvent<string | Blob>) => {
-						const data: {
-							type: string;
-							username: string;
-							description: RTCSessionDescriptionInit;
-							candidate: RTCIceCandidate;
-						} = JSON.parse(
+						const data: ServerMessage = JSON.parse(
 							typeof message.data === "string"
 								? message.data
 								: await message.data.text()
 						);
 
-						if (data.type === "answer")
-							await peerConnection.current?.setRemoteDescription(
-								new RTCSessionDescription(data.description)
+						console.log("received message", data);
+						if (data.type === "users") setUsers(data.data);
+						else if (data.type === "addUser")
+							setUsers((oldUsers) => [...(oldUsers ?? []), data.data]);
+						else if (data.type === "removeUser")
+							setUsers((oldUsers) =>
+								oldUsers?.filter((user) => user !== data.data)
 							);
-						else if (data.type === "ice-candidate")
+						else if (data.type === "answer")
+							await peerConnection.current?.setRemoteDescription(
+								new RTCSessionDescription(data.data)
+							);
+						else if (data.type === "candidate")
 							await peerConnection.current?.addIceCandidate(
-								new RTCIceCandidate(data.candidate)
+								new RTCIceCandidate(data.data)
 							);
 					}
-				);
-				const stream = await navigator.mediaDevices.getDisplayMedia({
-					video: {
-						displaySurface: { ideal: "monitor" },
-					},
-				});
-
-				for (const track of stream.getTracks())
-					peerConnection.current.addTrack(track, stream);
-				const description = await peerConnection.current.createOffer();
-
-				await peerConnection.current.setLocalDescription(description);
-				webSocket.current.send(
-					JSON.stringify({ type: "offer", description, username: newUsername })
 				);
 			}}
 		>
