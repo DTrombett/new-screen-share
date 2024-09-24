@@ -29,7 +29,7 @@ const Home = () => {
 				const username = (e.currentTarget[0] as HTMLInputElement).value;
 
 				webSocket.current = new WebSocket(
-					`ws://${location.hostname}:8080/view?username=${username}`
+					`${location.origin.replace("http", "ws")}/get?username=${username}`
 				);
 				webSocket.current.addEventListener(
 					"message",
@@ -47,6 +47,14 @@ const Home = () => {
 						}
 					}
 				);
+				webSocket.current.addEventListener("error", (event) => {
+					console.error(event);
+				});
+				webSocket.current.addEventListener("close", (event) => {
+					console.error(
+						`WebSocket closed with code ${event.code}, reason: ${event.reason}`
+					);
+				});
 			}}
 		>
 			<input

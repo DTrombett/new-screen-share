@@ -35,7 +35,8 @@ export type ServerMessage =
 			type: "candidate";
 			data: RTCIceCandidate;
 	  }
-	| { type: "error"; data: string };
+	| { type: "error"; data: string }
+	| { type: "open"; data: string };
 export type ClientMessage =
 	| {
 			type: "offer";

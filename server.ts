@@ -1,5 +1,6 @@
 import next from "next";
-import { createServer } from "node:http";
+import { readFileSync } from "node:fs";
+import { createServer } from "node:https";
 import { env } from "node:process";
 import { parse, URL } from "node:url";
 import WebSocket, { WebSocketServer } from "ws";
@@ -14,10 +15,14 @@ const port = parseInt(env.PORT ?? "3002");
 const dev = env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();
-const server = createServer((req, res) =>
+const options = {
+	cert: readFileSync("./certificate/__dev.trombett.org.pem"),
+	key: readFileSync("./certificate/__dev.trombett.org.key"),
+};
+const server = createServer(options, (req, res) =>
 	handle(req, res, parse(req.url!, true)).catch(console.error)
 );
-const wss = new WebSocketServer<typeof CustomWebSocket>({ port: 8080 });
+const wss = new WebSocketServer<typeof CustomWebSocket>({ noServer: true });
 const interval = setInterval(() => {
 	for (const ws of wss.clients) {
 		if (ws.isAlive === false) {
@@ -37,7 +42,7 @@ wss.on("connection", (ws, req) => {
 		ws.terminate();
 		return;
 	}
-	const url = new URL(req.url, "http://localhost:8080");
+	const url = new URL(req.url, "wss://localhost:3002");
 
 	ws.username = url.searchParams.get("username")!;
 	if (!ws.username) {
@@ -45,7 +50,7 @@ wss.on("connection", (ws, req) => {
 		return;
 	}
 	ws.role =
-		url.pathname === "/view"
+		url.pathname === "/get"
 			? Role.Viewer
 			: url.pathname === "/stream"
 			? Role.Streamer
@@ -185,22 +190,27 @@ wss.on("connection", (ws, req) => {
 				} satisfies ServerMessage)
 			);
 		}
-	});
-	ws.on("error", console.error);
-	ws.on("pong", () => (ws.isAlive = true));
-	if (ws.role === Role.Viewer)
-		ws.once("close", () => {
-			for (const client of wss.clients)
-				if (
-					client.role === Role.Streamer &&
-					client.readyState === WebSocket.OPEN
-				)
-					client.send(
-						JSON.stringify({
-							type: "removeUser",
-							data: ws.username!,
-						} satisfies ServerMessage)
-					);
+	})
+		.on("error", console.error)
+		.on("pong", () => (ws.isAlive = true))
+		.once("close", (code, reason) => {
+			if (ws.role === Role.Viewer)
+				for (const client of wss.clients)
+					if (
+						client.role === Role.Streamer &&
+						client.readyState === WebSocket.OPEN
+					)
+						client.send(
+							JSON.stringify({
+								type: "removeUser",
+								data: ws.username!,
+							} satisfies ServerMessage)
+						);
+			console.log(
+				`${
+					ws.username
+				} disconnected with close code ${code}, reason: ${reason.toString()}`
+			);
 		});
 	if (ws.role === Role.Streamer) {
 		const data: string[] = [];
@@ -222,11 +232,24 @@ wss.on("connection", (ws, req) => {
 						data: ws.username,
 					} satisfies ServerMessage)
 				);
+	ws.send(
+		JSON.stringify({
+			type: "open",
+			data: "Ready!",
+		} satisfies ServerMessage)
+	);
+	console.log(`${ws.username} successfully connected as ${Role[ws.role]}`);
 });
 void app.prepare().then(() => {
 	server.listen(port);
+	server.on("upgrade", (request, socket, head) => {
+		if (request.url?.startsWith("/_next")) return;
+		wss.handleUpgrade(request, socket, head, (ws) => {
+			wss.emit("connection", ws, request);
+		});
+	});
 	console.log(
-		`> Server listening at http://localhost:${port} as ${
+		`> Server listening at https://localhost:${port} as ${
 			dev ? "development" : env.NODE_ENV
 		}`
 	);

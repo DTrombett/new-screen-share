@@ -52,7 +52,7 @@ const Home = () => {
 				setUsers([]);
 				e.preventDefault();
 				webSocket.current = new WebSocket(
-					`ws://${location.hostname}:8080/stream?username=${
+					`${location.origin.replace("http", "ws")}/stream?username=${
 						(e.currentTarget[0] as HTMLInputElement).value
 					}`
 				);
