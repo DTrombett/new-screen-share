@@ -41,7 +41,10 @@ const Home = () => {
 								peerConnection.current.getSenders().map(async (sender) => {
 									const parameters = sender.getParameters();
 
-									parameters.encodings[0] = { maxBitrate: 64_000_000 };
+									parameters.encodings[0] = {
+										maxBitrate:
+											sender.track?.kind === "video" ? 64_000_000 : 32_000_000,
+									};
 									return sender.setParameters(parameters);
 								})
 							);
