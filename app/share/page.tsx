@@ -28,20 +28,21 @@ const Home = () => {
 									height: { ideal: 1080 },
 									width: { ideal: 1920 },
 								},
-								audio: true,
+								audio: {
+									channelCount: { ideal: 2 },
+									sampleRate: { ideal: 64 },
+									sampleSize: { ideal: 32 },
+								},
 							});
 
 							for (const track of stream.getTracks())
 								peerConnection.current.addTrack(track, stream);
 							await Promise.all(
 								peerConnection.current.getSenders().map(async (sender) => {
-									if (sender.track?.kind === "video") {
-										const parameters = sender.getParameters();
+									const parameters = sender.getParameters();
 
-										parameters.encodings[0] = { maxBitrate: 64_000_000 };
-										return sender.setParameters(parameters);
-									}
-									return null;
+									parameters.encodings[0] = { maxBitrate: 64_000_000 };
+									return sender.setParameters(parameters);
 								})
 							);
 							const description = await peerConnection.current.createOffer();

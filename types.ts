@@ -9,6 +9,7 @@ export declare class CustomWebSocket extends WebSocket {
 	isAlive?: boolean;
 	role?: Role;
 	peer?: string;
+	ip?: string;
 }
 export type ServerMessage =
 	| {

@@ -45,6 +45,9 @@ wss.on("connection", (ws, req) => {
 	const url = new URL(req.url, "wss://localhost:3002");
 
 	ws.username = url.searchParams.get("username")!;
+	ws.ip =
+		(req.headers["x-forwarded-for"] as string | undefined) ??
+		req.socket.remoteAddress;
 	if (!ws.username) {
 		ws.close(3000);
 		return;
@@ -84,7 +87,8 @@ wss.on("connection", (ws, req) => {
 						if (
 							client.username === data.data.user &&
 							client.role === Role.Viewer &&
-							client.readyState === WebSocket.OPEN
+							client.readyState === WebSocket.OPEN &&
+							(dev || client.ip === ws.ip)
 						) {
 							client.send(
 								JSON.stringify({
@@ -98,7 +102,6 @@ wss.on("connection", (ws, req) => {
 							ws.peer = client.username;
 							return;
 						}
-
 					ws.send(
 						JSON.stringify({
 							type: "error",
@@ -119,7 +122,8 @@ wss.on("connection", (ws, req) => {
 							client.username === data.data.user &&
 							client.role === Role.Streamer &&
 							client.peer === ws.username &&
-							client.readyState === WebSocket.OPEN
+							client.readyState === WebSocket.OPEN &&
+							(dev || client.ip === ws.ip)
 						) {
 							client.send(
 								JSON.stringify({
@@ -150,7 +154,8 @@ wss.on("connection", (ws, req) => {
 							client.username === ws.peer &&
 							client.role === Role.Streamer &&
 							client.peer === ws.username &&
-							client.readyState === WebSocket.OPEN
+							client.readyState === WebSocket.OPEN &&
+							(dev || client.ip === ws.ip)
 						) {
 							client.send(
 								JSON.stringify({
@@ -197,7 +202,8 @@ wss.on("connection", (ws, req) => {
 				for (const client of wss.clients)
 					if (
 						client.role === Role.Streamer &&
-						client.readyState === WebSocket.OPEN
+						client.readyState === WebSocket.OPEN &&
+						(dev || client.ip === ws.ip)
 					)
 						client.send(
 							JSON.stringify({
@@ -215,7 +221,11 @@ wss.on("connection", (ws, req) => {
 		const data: string[] = [];
 
 		for (const client of wss.clients)
-			if (client.username && client.role === Role.Viewer)
+			if (
+				client.username &&
+				client.role === Role.Viewer &&
+				(dev || client.ip === ws.ip)
+			)
 				data.push(client.username);
 		ws.send(JSON.stringify({ type: "users", data } satisfies ServerMessage));
 	} else
@@ -223,7 +233,8 @@ wss.on("connection", (ws, req) => {
 			if (
 				client.role === Role.Streamer &&
 				client.username &&
-				client.readyState === WebSocket.OPEN
+				client.readyState === WebSocket.OPEN &&
+				(dev || client.ip === ws.ip)
 			)
 				client.send(
 					JSON.stringify({
