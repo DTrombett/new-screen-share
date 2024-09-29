@@ -6,7 +6,7 @@
 		"start": "cross-env NODE_ENV=production node dist/server.js"
 	},
 	"engines": {
-		"node": "20.x"
+		"node": ">=20.x"
 	},
 	"dependencies": {
 		"@fullhuman/postcss-purgecss": "^6.0.0",

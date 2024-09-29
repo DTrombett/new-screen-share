@@ -23,12 +23,27 @@ const Home = () => {
 						onClick={async () => {
 							peerConnection.current = new RTCPeerConnection();
 							const stream = await navigator.mediaDevices.getDisplayMedia({
-								video: true,
+								video: {
+									frameRate: { ideal: 60 },
+									height: { ideal: 1080 },
+									width: { ideal: 1920 },
+								},
 								audio: true,
 							});
 
 							for (const track of stream.getTracks())
 								peerConnection.current.addTrack(track, stream);
+							await Promise.all(
+								peerConnection.current.getSenders().map(async (sender) => {
+									if (sender.track?.kind === "video") {
+										const parameters = sender.getParameters();
+
+										parameters.encodings[0] = { maxBitrate: 64_000_000 };
+										return sender.setParameters(parameters);
+									}
+									return null;
+								})
+							);
 							const description = await peerConnection.current.createOffer();
 
 							await peerConnection.current.setLocalDescription(description);
@@ -49,8 +64,8 @@ const Home = () => {
 		<form
 			className="mx-auto flex flex-col"
 			onSubmit={async (e) => {
-				setUsers([]);
 				e.preventDefault();
+				setUsers([]);
 				webSocket.current = new WebSocket(
 					`${location.origin.replace("http", "ws")}/stream?username=${
 						(e.currentTarget[0] as HTMLInputElement).value

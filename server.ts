@@ -80,8 +80,7 @@ wss.on("connection", (ws, req) => {
 
 			if (data.type === "offer")
 				if (ws.role === Role.Streamer && ws.username) {
-					for (const client of wss.clients) {
-						console.log(client.username);
+					for (const client of wss.clients)
 						if (
 							client.username === data.data.user &&
 							client.role === Role.Viewer &&
@@ -99,7 +98,7 @@ wss.on("connection", (ws, req) => {
 							ws.peer = client.username;
 							return;
 						}
-					}
+
 					ws.send(
 						JSON.stringify({
 							type: "error",

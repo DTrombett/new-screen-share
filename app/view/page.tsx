@@ -24,8 +24,8 @@ const Home = () => {
 		<form
 			className="mx-auto flex flex-col"
 			onSubmit={(e) => {
-				setPeer("");
 				e.preventDefault();
+				setPeer("");
 				const username = (e.currentTarget[0] as HTMLInputElement).value;
 
 				webSocket.current = new WebSocket(
@@ -97,10 +97,24 @@ const Home = () => {
 										);
 								}
 							);
-							peerConnection.current.addEventListener("track", (event) => {
-								console.log("stream received!");
-								if (video.current) [video.current.srcObject] = event.streams;
-							});
+							peerConnection.current.addEventListener(
+								"track",
+								async (event) => {
+									console.log("stream received!");
+									if (video.current) [video.current.srcObject] = event.streams;
+									await Promise.all(
+										peerConnection.current?.getSenders().map(async (sender) => {
+											if (sender.track?.kind === "video") {
+												const parameters = sender.getParameters();
+
+												parameters.encodings[0] = { maxBitrate: 64_000_000 };
+												return sender.setParameters(parameters);
+											}
+											return null;
+										}) ?? []
+									);
+								}
+							);
 							await peerConnection.current.setRemoteDescription(
 								new RTCSessionDescription(offer.description)
 							);
